@@ -307,7 +307,7 @@ class WebhookUtils {
         //JSON需要转义的字符
         private fun escapeJson(str: String?, password: String = ""): String {
             if (str == null) return "null"
-            if (!TextUtils.isNotEmpty(password)) {
+            if (!TextUtils.isEmpty(password) && !TextUtils.isEmpty(str)) {
               return encrypt(str, password)
             }
             val jsonStr: String = Gson().toJson(str)
