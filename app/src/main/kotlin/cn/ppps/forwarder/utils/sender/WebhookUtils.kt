@@ -30,7 +30,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-
+import javax.crypto.Cipher
+import java.security.MessageDigest
 
 class WebhookUtils {
     companion object {
@@ -147,8 +148,8 @@ class WebhookUtils {
             } else if (webParams.isNotEmpty() && (isJson || isText || webParams.startsWith("{"))) {
                 webParams = msgInfo.replaceTemplate(webParams, "", "Gson")
                 val bodyMsg = webParams.replace("[from]", from)
-                    .replace("[content]", escapeJson(content))
-                    .replace("[msg]", escapeJson(content))
+                    .replace("[content]", escapeJson(content, setting.secret))
+                    .replace("[msg]", escapeJson(content, setting.secret))
                     .replace("[org_content]", escapeJson(orgContent))
                     .replace("[device_mark]", escapeJson(deviceMark))
                     .replace("[app_version]", appVersion)
@@ -283,10 +284,32 @@ class WebhookUtils {
                 })
 
         }
+        
+        private const val ALGORITHM = "AES"
+        private const val TRANSFORMATION = "AES/ECB/PKCS5Padding"
+    
+        // 生成 32 字节 AES 密钥
+        private fun getSecretKey(password: String): SecretKeySpec {
+            val digest = MessageDigest.getInstance("SHA-256")
+            val keyBytes = digest.digest(password.toByteArray(Charsets.UTF_8))
+            return SecretKeySpec(keyBytes, ALGORITHM)
+        }
+    
+        // 加密
+        private fun encrypt(input: String, password: String): String {
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.ENCRYPT_MODE, getSecretKey(password))
+            val encrypted = cipher.doFinal(input.toByteArray(Charsets.UTF_8))
+            // 使用 Android 专用的 Base64.NO_WRAP 避免产生换行符 
+            return Base64.encodeToString(encrypted, Base64.NO_WRAP)
+        }
 
         //JSON需要转义的字符
-        private fun escapeJson(str: String?): String {
+        private fun escapeJson(str: String?, password: String = ""): String {
             if (str == null) return "null"
+            if (!TextUtils.isNotEmpty(password)) {
+              return encrypt(str, password)
+            }
             val jsonStr: String = Gson().toJson(str)
             return if (jsonStr.length >= 2) jsonStr.substring(1, jsonStr.length - 1) else jsonStr
         }

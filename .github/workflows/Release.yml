@@ -14,6 +14,10 @@ on:
         description: "Release Title"
         required: true
         default: "SmsForwarder"
+      release_tag:
+        description: "Release Tag"
+        required: true
+        default: "test"
 
 jobs:
   build:
@@ -45,8 +49,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "release"
-          release_name: SmsForwarder ${{ github.ref }}
+          tag_name: v${{ github.event.inputs.release_tag }}
+          release_name: SmsForwarder-v${{ github.event.inputs.release_tag }}
           draft: false
           prerelease: false
       # 上传至release的资源
