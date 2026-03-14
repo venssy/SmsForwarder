@@ -42,22 +42,19 @@ jobs:
       # 打包release
       - name: Build with Gradle
         run: bash ./gradlew assembleRelease
-      # 创建release
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.event.inputs.release_tag }}
-          release_name: SmsForwarder-v${{ github.event.inputs.release_tag }}
-          draft: false
-          prerelease: false
-      # 上传至release的资源
+  
+      # 增加一个检查步骤，确认文件生成路径
+      - name: Check APK Path
+        run: find . -name "*.apk"
+
+      # 直接使用 softprops 上传，整合创建与上传
       - name: Upload release binaries
         uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.event.inputs.release_tag || github.ref_name }}
+          name: SmsForwarder-v${{ github.event.inputs.release_tag || github.ref_name }}
+          # 修正路径：移除多余的 JSON 括号，确认路径是否包含 app 目录
+          files: app/build/outputs/apk/release/SmsF_*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: '["./build/app/outputs/apk/release/SmsF_*"]'
-          tag_name: v${{ github.event.inputs.release_tag }}
+          
