@@ -55,8 +55,9 @@ jobs:
           prerelease: false
       # 上传至release的资源
       - name: Upload release binaries
-        uses: alexellis/upload-assets@0.2.2
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          asset_paths: '["./build/app/outputs/apk/release/SmsF_*"]'
+          files: '["./build/app/outputs/apk/release/SmsF_*"]'
+          tag_name: v${{ github.event.inputs.release_tag }}
