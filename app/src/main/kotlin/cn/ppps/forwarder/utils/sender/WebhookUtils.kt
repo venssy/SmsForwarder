@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import javax.crypto.Mac
+import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import javax.crypto.Cipher
 import java.security.MessageDigest
@@ -148,8 +149,10 @@ class WebhookUtils {
             } else if (webParams.isNotEmpty() && (isJson || isText || webParams.startsWith("{"))) {
                 webParams = msgInfo.replaceTemplate(webParams, "", "Gson")
                 val bodyMsg = webParams.replace("[from]", from)
-                    .replace("[content]", escapeJson(content, setting.secret))
-                    .replace("[msg]", escapeJson(content, setting.secret))
+                    .replace("[[[content]]]", escapeJson(content, setting.secret))
+                    .replace("[[[msg]]]", escapeJson(content, setting.secret))
+                    .replace("[content]", escapeJson(content))
+                    .replace("[msg]", escapeJson(content))
                     .replace("[org_content]", escapeJson(orgContent))
                     .replace("[device_mark]", escapeJson(deviceMark))
                     .replace("[app_version]", appVersion)
@@ -294,14 +297,15 @@ class WebhookUtils {
             val keyBytes = digest.digest(password.toByteArray(Charsets.UTF_8))
             return SecretKeySpec(keyBytes, ALGORITHM)
         }
-    
-        // 加密
-        private fun encrypt(input: String, password: String): String {
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(Cipher.ENCRYPT_MODE, getSecretKey(password))
-            val encrypted = cipher.doFinal(input.toByteArray(Charsets.UTF_8))
-            // 使用 Android 专用的 Base64.NO_WRAP 避免产生换行符 
-            return Base64.encodeToString(encrypted, Base64.NO_WRAP)
+        
+        private fun encrypt(plainText: String, password: String): String {
+            val key = MessageDigest.getInstance("SHA-256").digest(password.toByteArray(Charsets.UTF_8))
+            val block = Cipher.getInstance("AES/GCM/NoPadding")
+            val gcm = GCMParameterSpec(128, ByteArray(12))  // 128-bit tag, 12-byte nonce
+            block.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), gcm)
+            val ciphertext = block.doFinal(plainText.toByteArray(Charsets.UTF_8))
+            val combined = gcm.iv + ciphertext  // nonce 前置（Go 的 Seal 把 nonce 拼在密文前面）
+            return combined.joinToString("") { "%02x".format(it) }
         }
 
         //JSON需要转义的字符
